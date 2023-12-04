@@ -1,0 +1,82 @@
+
+
+import org.bukkit.Bukkit;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.PlayerDeathEvent;
+
+
+
+public class DetectionTask implements Supplier<Effect>, Listener {
+
+    
+
+    private final Player player; 
+    private final Craft craft; 
+
+    public DetectionTask(Player player, Craft craft) {
+        this.player = player;
+        this.craft = craft;
+        
+        
+
+        
+        Bukkit.getPluginManager().registerEvents(this, Movecraft.getInstance());
+    }
+
+    
+
+    
+    @EventHandler
+    public void onPlayerDeath(PlayerDeathEvent event) {
+        if (event.getEntity().equals(player)) {
+            
+            if (craft != null) {
+                Bukkit.getScheduler().runTask(Movecraft.getInstance(), () -> {
+                    CraftManager.getInstance().remove(craft);
+                    craft.getAudience().sendMessage(Component.text(I18nSupport.getInternationalisedString("Craft Scuttled - Pilot Died")));
+                });
+            }
+        }
+    }
+    
+    
+
+    
+    @Override
+    public Effect get() {
+        
+
+        return ((Effect) () -> {
+            
+            craft.getAudience().sendMessage(Component.text(String.format(
+                    "%s Size: %s",
+                    I18nSupport.getInternationalisedString("Detection - Successfully piloted craft"),
+                    craft.getHitBox().size()
+            )));
+            Movecraft.getInstance().getLogger().info(String.format(
+                    I18nSupport.getInternationalisedString("Detection - Success - Log Output"),
+                    player == null ? "null" : player.getName(),
+                    craft.getType().getStringProperty(CraftType.NAME),
+                    craft.getHitBox().size(),
+                    craft.getHitBox().getMinX(),
+                    craft.getHitBox().getMinZ()
+            ));
+        }).andThen(
+                
+                water(craft)
+        ).andThen(
+                
+                () -> Bukkit.getServer().getPluginManager().callEvent(
+                        new CraftPilotEvent(craft, CraftPilotEvent.Reason.PLAYER))
+        ).andThen(
+                
+                postDetection.apply(craft)
+        ).andThen(
+                
+                () -> CraftManager.getInstance().add(craft)
+        );
+    }
+    
+    
+}
